@@ -1,0 +1,6 @@
+{
+  "name": "Aura — Autonomous Celebration Intelligence",
+  "description": "Autonomous AI event orchestration, vendor negotiation, spatial ambience studio, and financial ledger for luxury celebrations.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

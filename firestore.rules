@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, maxLen) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is string && request.resource.data[field].size() <= maxLen);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUserProfile(userId) {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'photoURL', 'primaryCategory', 'role', 'createdAt', 'updatedAt']) &&
+        data.uid == userId &&
+        isValidString(data.email, 3, 254) &&
+        data.role in ['client', 'producer'] &&
+        isValidString(data.createdAt, 10, 64) &&
+        isValidOptionalString('displayName', 120) &&
+        isValidOptionalString('photoURL', 1024) &&
+        isValidOptionalString('primaryCategory', 120) &&
+        isValidOptionalString('updatedAt', 64);
+    }
+
+    function isValidTask(userId) {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['uid', 'title', 'due', 'dueCls', 'desc', 'category', 'priority', 'done', 'createdAt']) &&
+        data.uid == userId &&
+        isValidString(data.title, 1, 300) &&
+        data.priority in ['high', 'normal'] &&
+        data.done is bool &&
+        isValidString(data.createdAt, 10, 64) &&
+        isValidOptionalString('due', 80) &&
+        isValidOptionalString('dueCls', 200) &&
+        isValidOptionalString('desc', 1000) &&
+        isValidOptionalString('category', 120);
+    }
+
+    function isValidEvent(userId) {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['uid', 'name', 'typology', 'venue', 'date', 'countdown', 'guests', 'budget', 'vibe', 'createdAt']) &&
+        data.uid == userId &&
+        isValidString(data.name, 1, 200) &&
+        isValidString(data.venue, 1, 200) &&
+        data.guests is number && data.guests >= 1 && data.guests <= 10000 &&
+        data.budget is number && data.budget >= 0 && data.budget <= 10000000 &&
+        isValidString(data.createdAt, 10, 64) &&
+        isValidOptionalString('typology', 120) &&
+        isValidOptionalString('date', 120) &&
+        isValidOptionalString('countdown', 120) &&
+        isValidOptionalString('vibe', 120);
+    }
+
+    function isValidMessage(userId) {
+      let data = request.resource.data;
+      return hasOnlyAllowedFields(['uid', 'role', 'text', 'persona', 'model', 'timeStr', 'transcribedFromAudio', 'createdAt']) &&
+        data.uid == userId &&
+        data.role in ['user', 'model'] &&
+        isValidString(data.text, 1, 8000) &&
+        isValidString(data.createdAt, 10, 64) &&
+        isValidOptionalString('persona', 80) &&
+        isValidOptionalString('model', 80) &&
+        isValidOptionalString('timeStr', 64) &&
+        (!('transcribedFromAudio' in data) || data.transcribedFromAudio is bool);
+    }
+
+    // ===============================================================
+    // Match Blocks
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(userId);
+      allow update: if isOwner(userId) &&
+        isValidUserProfile(userId) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(userId);
+
+      match /tasks/{taskId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidTask(userId);
+        allow update: if isOwner(userId) &&
+          isValidTask(userId) &&
+          request.resource.data.uid == resource.data.uid &&
+          request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /events/{eventId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidEvent(userId);
+        allow update: if isOwner(userId) &&
+          isValidEvent(userId) &&
+          request.resource.data.uid == resource.data.uid &&
+          request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /messages/{messageId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidMessage(userId);
+        allow update: if isOwner(userId) &&
+          isValidMessage(userId) &&
+          request.resource.data.uid == resource.data.uid &&
+          request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

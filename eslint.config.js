@@ -3,6 +3,7 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
+import firebaseRulesPlugin from '@firebase/eslint-plugin-security-rules'
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -14,8 +15,12 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     languageOptions: {
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  firebaseRulesPlugin.configs['flat/recommended'],
 ])

@@ -1,7 +1,21 @@
-import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAura } from '../context/AuraContext.jsx'
 
 export default function SignUp() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { signInWithGoogle } = useAura()
+  const navigate = useNavigate()
+
+  const handleGoogleSignUp = async () => {
+    try {
+      await signInWithGoogle()
+      navigate('/')
+    } catch {
+      // handled in context
+    }
+  }
+
   // Original Stitch interactivity (runs once after the page is on screen)
   useEffect(() => {
     // Client-side interactions for Password visibility toggle and Preference Pill selections
@@ -42,10 +56,10 @@ export default function SignUp() {
         <div className="absolute top-[40%] -left-[10%] w-[500px] h-[500px] bg-primary-container/10 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[10%] right-[5%] w-[450px] h-[450px] bg-secondary-container/15 rounded-full blur-[110px]"></div>
       </div>
-      <header className="fixed top-0 left-0 w-full z-50 bg-surface/70 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-        <div className="h-16 max-w-7xl mx-auto px-margin flex items-center justify-between">
+      <header className="fixed top-0 left-0 w-full z-50 bg-surface/80 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+        <div className="h-16 max-w-7xl mx-auto px-margin-sm lg:px-margin flex items-center justify-between">
           <div className="flex items-center gap-space-md">
-            <Link to="/sign-in" className="flex items-center gap-space-sm">
+            <Link to="/" className="flex items-center gap-space-sm">
               <img alt="Aura Events Logo" className="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1UVwdC8RfAAb6FcUA4r1PWpZ5jN627WJHoF0C6m6spUiaZS1Pbs3EtaHKlqPjyG_wvDF2KY100kTbaQrYGcGhZgnGMVG68FOYy6THH2sq-YFBbDQRTJV8yILShPoE2BRceuMBJMMLs1gb7oknMv2HZmIzwMvnT3pMKKHySLqoH8v7qSrJQc4NA1vrF4G2s1eBbhrz7GRqSpwGGhtJ9rpjBe8p9Akbyj2NRjkfOu_gtmMTiGq2WKDGg1CYA" />
               <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight">
                 Aura
@@ -56,29 +70,61 @@ export default function SignUp() {
               v2.4 AI Engine
             </span>
           </div>
-          <div className="flex items-center gap-space-lg">
-            <nav className="flex items-center gap-space-lg" data-active-classes="text-primary font-label-lg text-label-lg">
+          <div className="flex items-center gap-3 sm:gap-space-lg">
+            <nav className="hidden md:flex items-center gap-space-lg" data-active-classes="text-primary font-label-lg text-label-lg">
+              <Link to="/" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors">
+                Dashboard
+              </Link>
               <Link to="/sign-in" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors">
                 Sign In
               </Link>
               <Link to="/sign-up" aria-current="page" className="transition-colors text-primary font-label-lg text-label-lg">
                 Create Account
               </Link>
-              <a className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="documentation" href="#">
-                Help & Documentation
-              </a>
+              <Link to="/concierge-support" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors">
+                Help &amp; Concierge
+              </Link>
             </nav>
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+            <Link to="/" className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0" title="Back to Dashboard">
               <span className="material-symbols-outlined text-on-primary text-[18px]">
                 person
               </span>
-            </div>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Toggle navigation menu"
+              className="md:hidden w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                {mobileMenuOpen ? 'close' : 'menu'}
+              </span>
+            </button>
           </div>
         </div>
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-surface-container-low/95 backdrop-blur-2xl border-b border-white/[0.08] px-margin-sm py-4 flex flex-col gap-2 animate-scale-in">
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high font-label-lg text-label-lg text-on-surface flex items-center justify-between">
+              <span>Live Event Dashboard</span>
+              <span className="material-symbols-outlined text-[18px] text-primary">dashboard</span>
+            </Link>
+            <Link to="/new-event" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high font-label-lg text-label-lg text-on-surface flex items-center justify-between">
+              <span>Create Celebration Blueprint</span>
+              <span className="material-symbols-outlined text-[18px] text-secondary-fixed">add_circle</span>
+            </Link>
+            <Link to="/concierge-support" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high font-label-lg text-label-lg text-on-surface flex items-center justify-between">
+              <span>Help &amp; VIP Concierge</span>
+              <span className="material-symbols-outlined text-[18px] text-tertiary">support_agent</span>
+            </Link>
+            <Link to="/sign-in" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg font-semibold text-center mt-1">
+              Sign In to Existing Account
+            </Link>
+          </div>
+        )}
       </header>
-      <main className="relative z-10 w-full pt-16 flex-1 flex flex-col justify-center">
+      <main className="relative z-10 w-full pt-16 flex-1 flex flex-col justify-center animate-fade-up">
         <div className="flex flex-col w-full">
-          <div className="relative w-full max-w-7xl mx-auto px-margin py-space-xl">
+          <div className="relative w-full max-w-7xl mx-auto px-margin-sm lg:px-margin py-space-xl">
             <div className="absolute -top-12 left-1/4 w-96 h-96 bg-primary-container/10 rounded-full blur-[140px] pointer-events-none"></div>
             <div className="absolute bottom-10 right-1/4 w-[380px] h-[380px] bg-tertiary-container/10 rounded-full blur-[130px] pointer-events-none"></div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start relative z-10">
@@ -273,7 +319,7 @@ export default function SignUp() {
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-space-sm mb-space-md">
-                    <button className="flex items-center justify-center gap-space-xs h-12 px-space-md rounded-lg bg-surface-container-high/70 hover:bg-surface-container-highest text-on-surface font-label-lg text-label-lg transition-all duration-200 shadow-sm active:scale-[0.98]" type="button">
+                    <button onClick={handleGoogleSignUp} className="flex items-center justify-center gap-space-xs h-12 px-space-md rounded-lg bg-surface-container-high/70 hover:bg-surface-container-highest text-on-surface font-label-lg text-label-lg transition-all duration-200 shadow-sm active:scale-[0.98] cursor-pointer" type="button">
                       <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24">
                         <path d="M12.24 10.285V13.4h6.887C18.2 16.14 15.645 18 12.24 18c-3.315 0-6-2.685-6-6s2.685-6 6-6c1.47 0 2.81.53 3.86 1.41l2.36-2.36C17.02 3.69 14.77 3 12.24 3 7.27 3 3.24 7.03 3.24 12s4.03 9 9 9c5.2 0 8.65-3.66 8.65-8.81 0-.61-.06-1.22-.16-1.9H12.24z"></path>
                       </svg>
@@ -281,7 +327,7 @@ export default function SignUp() {
                         Google
                       </span>
                     </button>
-                    <button className="flex items-center justify-center gap-space-xs h-12 px-space-md rounded-lg bg-surface-container-high/70 hover:bg-surface-container-highest text-on-surface font-label-lg text-label-lg transition-all duration-200 shadow-sm active:scale-[0.98]" type="button">
+                    <button onClick={handleGoogleSignUp} className="flex items-center justify-center gap-space-xs h-12 px-space-md rounded-lg bg-surface-container-high/70 hover:bg-surface-container-highest text-on-surface font-label-lg text-label-lg transition-all duration-200 shadow-sm active:scale-[0.98] cursor-pointer" type="button">
                       <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24">
                         <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.89c.65-.79 1.1-1.9 1-3.01-1 .04-2.13.68-2.79 1.45-.58.67-1.1 1.76-.98 2.85 1.12.09 2.19-.55 2.77-1.29z"></path>
                       </svg>
@@ -296,7 +342,7 @@ export default function SignUp() {
                       Or sign up with work email
                     </span>
                   </div>
-                  <form className="space-y-space-md" onSubmit={(e) => { e.preventDefault(); }}>
+                  <form className="space-y-space-md" onSubmit={(e) => { e.preventDefault(); handleGoogleSignUp(); }}>
                     <div className="space-y-space-xs">
                       <label className="block font-label-md text-label-md text-on-surface-variant" htmlFor="fullName">
                         Full Name

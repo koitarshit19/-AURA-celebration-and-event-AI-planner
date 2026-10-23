@@ -1,56 +1,53 @@
-import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAura } from '../context/AuraContext.jsx'
 
 export default function SignIn() {
-  // Original Stitch interactivity (runs once after the page is on screen)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, signInWithGoogle, authError } = useAura()
+  const navigate = useNavigate()
+
+  async function handleGoogleLogin() {
+    try {
+      await signInWithGoogle()
+      navigate('/')
+    } catch {
+      // error displayed via authError
+    }
+  }
+
+  function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('password');
+    const eyeIcon = document.getElementById('eye-icon');
+    if (!passwordInput || !eyeIcon) return;
+    if (passwordInput.type === 'password') {
+      passwordInput.type = 'text';
+      eyeIcon.textContent = 'visibility_off';
+    } else {
+      passwordInput.type = 'password';
+      eyeIcon.textContent = 'visibility';
+    }
+  }
+
+  function updateIconHighlight(input, iconId) {
+    const icon = document.getElementById(iconId);
+    if (!icon) return;
+    if (input.value.trim().length > 0) {
+      icon.classList.add('text-secondary');
+      icon.classList.remove('text-on-surface-variant');
+    } else {
+      icon.classList.remove('text-secondary');
+      icon.classList.add('text-on-surface-variant');
+    }
+  }
+
+  function handleAuraAuth() {
+    handleGoogleLogin()
+  }
+
   useEffect(() => {
-    function togglePasswordVisibility() {
-          const passwordInput = document.getElementById('password');
-          const eyeIcon = document.getElementById('eye-icon');
-          if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            eyeIcon.textContent = 'visibility_off';
-          } else {
-            passwordInput.type = 'password';
-            eyeIcon.textContent = 'visibility';
-          }
-        }
-
-        function updateIconHighlight(input, iconId) {
-          const icon = document.getElementById(iconId);
-          if (input.value.trim().length > 0) {
-            icon.classList.add('text-secondary');
-            icon.classList.remove('text-on-surface-variant');
-          } else {
-            icon.classList.remove('text-secondary');
-            icon.classList.add('text-on-surface-variant');
-          }
-        }
-
-        function handleAuraAuth() {
-          const btn = document.getElementById('submit-btn');
-          const text = document.getElementById('btn-text');
-          const spinner = document.getElementById('btn-spinner');
-
-          text.classList.add('hidden');
-          spinner.classList.remove('hidden');
-          spinner.classList.add('flex');
-          btn.disabled = true;
-
-          setTimeout(() => {
-            spinner.innerHTML = '<span class="material-symbols-outlined text-[18px]">check</span><span>Authenticated</span>';
-            btn.classList.add('bg-secondary-container', 'text-on-secondary');
-            setTimeout(() => {
-              text.classList.remove('hidden');
-              spinner.classList.add('hidden');
-              spinner.classList.remove('flex');
-              btn.disabled = false;
-            }, 1500);
-          }, 1000);
-        }
     window.togglePasswordVisibility = togglePasswordVisibility
     window.updateIconHighlight = updateIconHighlight
-    window.handleAuraAuth = handleAuraAuth
   }, [])
 
   return (
@@ -60,10 +57,10 @@ export default function SignIn() {
         <div className="absolute top-[40%] -left-[10%] w-[500px] h-[500px] bg-primary-container/10 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[10%] right-[5%] w-[450px] h-[450px] bg-secondary-container/15 rounded-full blur-[110px]"></div>
       </div>
-      <header className="fixed top-0 left-0 w-full z-50 bg-surface/70 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-        <div className="h-16 max-w-7xl mx-auto px-margin flex items-center justify-between">
+      <header className="fixed top-0 left-0 w-full z-50 bg-surface/80 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+        <div className="h-16 max-w-7xl mx-auto px-margin-sm lg:px-margin flex items-center justify-between">
           <div className="flex items-center gap-space-md">
-            <Link to="/sign-in" className="flex items-center gap-space-sm">
+            <Link to="/" className="flex items-center gap-space-sm">
               <img alt="Aura Events Logo" className="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1UVwdC8RfAAb6FcUA4r1PWpZ5jN627WJHoF0C6m6spUiaZS1Pbs3EtaHKlqPjyG_wvDF2KY100kTbaQrYGcGhZgnGMVG68FOYy6THH2sq-YFBbDQRTJV8yILShPoE2BRceuMBJMMLs1gb7oknMv2HZmIzwMvnT3pMKKHySLqoH8v7qSrJQc4NA1vrF4G2s1eBbhrz7GRqSpwGGhtJ9rpjBe8p9Akbyj2NRjkfOu_gtmMTiGq2WKDGg1CYA" />
               <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight">
                 Aura
@@ -74,24 +71,56 @@ export default function SignIn() {
               v2.4 AI Engine
             </span>
           </div>
-          <div className="flex items-center gap-space-lg">
-            <nav className="flex items-center gap-space-lg" data-active-classes="text-primary font-label-lg text-label-lg">
-              <a className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors" data-path="documentation" href="#">
-                Help & Documentation
-              </a>
-              <Link to="/sign-up" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors">
+          <div className="flex items-center gap-3 sm:gap-space-lg">
+            <nav className="hidden md:flex items-center gap-space-lg" data-active-classes="text-primary font-label-lg text-label-lg">
+              <Link to="/" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors">
+                Dashboard
+              </Link>
+              <Link to="/concierge-support" className="font-label-lg text-label-lg text-on-surface-variant hover:text-on-surface transition-colors">
+                Help &amp; Concierge
+              </Link>
+              <Link to="/sign-up" className="font-label-lg text-label-lg text-secondary-fixed hover:text-on-surface transition-colors">
                 Create Account
               </Link>
             </nav>
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+            <Link to="/" className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0" title="Back to Dashboard">
               <span className="material-symbols-outlined text-on-primary text-[18px]">
                 person
               </span>
-            </div>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Toggle navigation menu"
+              className="md:hidden w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                {mobileMenuOpen ? 'close' : 'menu'}
+              </span>
+            </button>
           </div>
         </div>
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-surface-container-low/95 backdrop-blur-2xl border-b border-white/[0.08] px-margin-sm py-4 flex flex-col gap-2 animate-scale-in">
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high font-label-lg text-label-lg text-on-surface flex items-center justify-between">
+              <span>Live Event Dashboard</span>
+              <span className="material-symbols-outlined text-[18px] text-primary">dashboard</span>
+            </Link>
+            <Link to="/plan-overview" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high font-label-lg text-label-lg text-on-surface flex items-center justify-between">
+              <span>Masterplan Overview</span>
+              <span className="material-symbols-outlined text-[18px] text-secondary-fixed">auto_awesome</span>
+            </Link>
+            <Link to="/concierge-support" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high font-label-lg text-label-lg text-on-surface flex items-center justify-between">
+              <span>Help &amp; VIP Concierge</span>
+              <span className="material-symbols-outlined text-[18px] text-tertiary">support_agent</span>
+            </Link>
+            <Link to="/sign-up" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2.5 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg font-semibold text-center mt-1">
+              Create Aura Account
+            </Link>
+          </div>
+        )}
       </header>
-      <main className="relative z-10 w-full pt-16 flex-1 flex flex-col justify-center">
+      <main className="relative z-10 w-full pt-16 flex-1 flex flex-col justify-center animate-fade-up">
         <div className="flex flex-col w-full">
           <div className="relative w-full min-h-[calc(100vh-8rem)] flex items-center justify-center px-margin-sm md:px-margin py-space-lg">
             <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-center relative z-10">
@@ -260,8 +289,23 @@ export default function SignIn() {
                       Continue crafting extraordinary moments with GenAI precision.
                     </p>
                   </div>
+                  {user && (
+                    <div className="mb-space-md p-3 rounded-xl bg-secondary-container/30 border border-secondary-fixed/30 flex items-center justify-between">
+                      <span className="font-label-md text-label-md text-secondary-fixed">
+                        Signed in as {user.displayName || user.email}
+                      </span>
+                      <Link to="/" className="font-label-md text-label-md text-primary underline">
+                        Open Dashboard →
+                      </Link>
+                    </div>
+                  )}
+                  {authError && (
+                    <div className="mb-space-md p-3 rounded-xl bg-error-container/40 text-on-error-container font-body-sm text-body-sm">
+                      {authError}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-space-sm mb-space-lg">
-                    <button className="group flex items-center justify-center gap-space-sm h-12 px-space-md rounded-lg bg-surface-container-high hover:bg-surface-bright transition-all duration-200" type="button">
+                    <button onClick={handleGoogleLogin} className="group flex items-center justify-center gap-space-sm h-12 px-space-md rounded-lg bg-surface-container-high hover:bg-surface-bright transition-all duration-200 cursor-pointer" type="button">
                       <svg className="w-5 h-5 transition-transform group-hover:scale-105" viewBox="0 0 24 24">
                         <path d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" fill="#EA4335"></path>
                         <path d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5.1 3.7-8.9z" fill="#4285F4"></path>
@@ -313,7 +357,7 @@ export default function SignIn() {
                           lock
                         </span>
                         <input autoComplete="current-password" className="w-full h-12 bg-transparent pl-11 pr-11 text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none" id="password" onInput={(e) => { updateIconHighlight(e.currentTarget, 'pass-icon') }} placeholder="••••••••••••" required type="password" />
-                        <button aria-label="Toggle password visibility" className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors p-1" id="toggle-pass-visibility" onClick={(e) => { togglePasswordVisibility() }} type="button">
+                        <button aria-label="Toggle password visibility" className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors p-1" id="toggle-pass-visibility" onClick={() => { togglePasswordVisibility() }} type="button">
                           <span className="material-symbols-outlined text-[20px]" id="eye-icon">
                             visibility
                           </span>

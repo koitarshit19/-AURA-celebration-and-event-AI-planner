@@ -1,33 +1,42 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
+import { AuraProvider } from './context/AuraContext.jsx'
 import Layout from './components/Layout.jsx'
-import Dashboard from './pages/Dashboard.jsx'
-import NewEvent from './pages/NewEvent.jsx'
-import PlanOverview from './pages/PlanOverview.jsx'
-import Vendors from './pages/Vendors.jsx'
-import Ambience from './pages/Ambience.jsx'
-import Schedule from './pages/Schedule.jsx'
-import Budget from './pages/Budget.jsx'
-import Concierge from './pages/Concierge.jsx'
-import SignIn from './pages/SignIn.jsx'
-import SignUp from './pages/SignUp.jsx'
+import PageLoadingFallback from './components/PageLoadingFallback.jsx'
+
+// Lazy-loaded routes for optimal bundle chunking and instant initial load
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'))
+const NewEvent = lazy(() => import('./pages/NewEvent.jsx'))
+const PlanOverview = lazy(() => import('./pages/PlanOverview.jsx'))
+const Vendors = lazy(() => import('./pages/Vendors.jsx'))
+const Ambience = lazy(() => import('./pages/Ambience.jsx'))
+const Schedule = lazy(() => import('./pages/Schedule.jsx'))
+const Budget = lazy(() => import('./pages/Budget.jsx'))
+const Concierge = lazy(() => import('./pages/Concierge.jsx'))
+const SignIn = lazy(() => import('./pages/SignIn.jsx'))
+const SignUp = lazy(() => import('./pages/SignUp.jsx'))
 
 export default function App() {
   return (
-    <Routes>
-      {/* Auth pages have their own header/footer, so they sit outside Layout */}
-      <Route path="/sign-in" element={<SignIn />} />
-      <Route path="/sign-up" element={<SignUp />} />
+    <AuraProvider>
+      <Suspense fallback={<PageLoadingFallback />}>
+        <Routes>
+          {/* Auth pages have their own standalone view outside Layout */}
+          <Route path="/sign-in" element={<SignIn />} />
+          <Route path="/sign-up" element={<SignUp />} />
 
-      <Route element={<Layout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/new-event" element={<NewEvent />} />
-        <Route path="/plan-overview" element={<PlanOverview />} />
-        <Route path="/vendors" element={<Vendors />} />
-        <Route path="/ambience-studio" element={<Ambience />} />
-        <Route path="/schedule" element={<Schedule />} />
-        <Route path="/budget" element={<Budget />} />
-        <Route path="/concierge-support" element={<Concierge />} />
-      </Route>
-    </Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/new-event" element={<NewEvent />} />
+            <Route path="/plan-overview" element={<PlanOverview />} />
+            <Route path="/vendors" element={<Vendors />} />
+            <Route path="/ambience-studio" element={<Ambience />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/budget" element={<Budget />} />
+            <Route path="/concierge-support" element={<Concierge />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </AuraProvider>
   )
 }

@@ -4,6 +4,89 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aura — Autonomous Celebration Intelligence</title>
+    <meta name="description" content="Autonomous AI event orchestration, vendor negotiation, spatial ambience studio, and financial ledger for luxury celebrations." />
+    <meta property="og:title" content="Aura — Autonomous Celebration Intelligence" />
+    <meta property="og:description" content="Autonomous AI event orchestration, vendor negotiation, spatial ambience studio, and financial ledger for luxury celebrations." />
+    <script>
+      (function () {
+        // 1. Suppress uncaught third-party browser extension errors
+        window.addEventListener(
+          'error',
+          function (e) {
+            var isExt =
+              (e.filename && e.filename.indexOf('chrome-extension://') !== -1) ||
+              (e.message && e.message.indexOf('Cannot set property fetch') !== -1);
+            if (isExt) {
+              e.preventDefault && e.preventDefault();
+              e.stopImmediatePropagation && e.stopImmediatePropagation();
+              return true;
+            }
+          },
+          true
+        );
+
+        window.addEventListener(
+          'unhandledrejection',
+          function (e) {
+            var reasonMsg = e && e.reason && (e.reason.message || String(e.reason));
+            if (reasonMsg && reasonMsg.indexOf('Cannot set property fetch') !== -1) {
+              e.preventDefault && e.preventDefault();
+              e.stopImmediatePropagation && e.stopImmediatePropagation();
+              return true;
+            }
+          },
+          true
+        );
+
+        var prevOnError = window.onerror;
+        window.onerror = function (msg, url) {
+          if (
+            (typeof url === 'string' && url.indexOf('chrome-extension://') !== -1) ||
+            (typeof msg === 'string' && msg.indexOf('Cannot set property fetch') !== -1)
+          ) {
+            return true;
+          }
+          if (typeof prevOnError === 'function') {
+            return prevOnError.apply(this, arguments);
+          }
+          return false;
+        };
+
+        // 2. Ensure window.fetch has both a getter and a setter so extension property assignment succeeds
+        try {
+          var realFetch = window.fetch ? window.fetch.bind(window) : null;
+          var activeFetch = realFetch;
+
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            try {
+              Object.defineProperty(Window.prototype, 'fetch', {
+                configurable: true,
+                enumerable: true,
+                get: function () {
+                  return activeFetch;
+                },
+                set: function (fn) {
+                  activeFetch = fn;
+                },
+              });
+            } catch (_) {}
+          }
+
+          try {
+            Object.defineProperty(window, 'fetch', {
+              configurable: true,
+              enumerable: true,
+              get: function () {
+                return activeFetch;
+              },
+              set: function (fn) {
+                activeFetch = fn;
+              },
+            });
+          } catch (_) {}
+        } catch (_) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />

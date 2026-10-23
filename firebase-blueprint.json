@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated Aura host or event producer profile.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string", "description": "Full name of the host or planner" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "photoURL": { "type": "string", "description": "Profile avatar URL" },
+        "primaryCategory": { "type": "string", "description": "Primary event focus category" },
+        "role": { "type": "string", "enum": ["client", "producer"], "description": "Studio role" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "DirectiveTask": {
+      "title": "DirectiveTask",
+      "description": "Host directive or checklist item synchronized with Aura run-of-show.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Owner user UID" },
+        "title": { "type": "string", "description": "Directive title" },
+        "due": { "type": "string", "description": "Target due label" },
+        "desc": { "type": "string", "description": "Detailed directive description" },
+        "category": { "type": "string", "description": "Operational category" },
+        "priority": { "type": "string", "enum": ["high", "normal"], "description": "Priority level" },
+        "done": { "type": "boolean", "description": "Completion status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["uid", "title", "priority", "done", "createdAt"]
+    },
+    "CelebrationBlueprint": {
+      "title": "CelebrationBlueprint",
+      "description": "Calibrated celebration event blueprint and budget envelope.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Owner user UID" },
+        "name": { "type": "string", "description": "Celebration name" },
+        "typology": { "type": "string", "description": "Archetype typology" },
+        "venue": { "type": "string", "description": "Estate or venue location" },
+        "date": { "type": "string", "description": "Target date string" },
+        "countdown": { "type": "string", "description": "Countdown label" },
+        "guests": { "type": "number", "description": "Curated guest attendance" },
+        "budget": { "type": "number", "description": "Allocated budget in USD" },
+        "vibe": { "type": "string", "description": "Aesthetic mood palette" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["uid", "name", "venue", "guests", "budget", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Multi-turn conversation message in the Aura AI Concierge thread.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Owner user UID" },
+        "role": { "type": "string", "enum": ["user", "model"], "description": "Sender role" },
+        "text": { "type": "string", "description": "Message text content" },
+        "persona": { "type": "string", "description": "Selected concierge persona ID" },
+        "model": { "type": "string", "description": "Gemini model used" },
+        "timeStr": { "type": "string", "description": "Formatted timestamp label" },
+        "transcribedFromAudio": { "type": "boolean", "description": "Whether message originated from audio transcription" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation ISO timestamp" }
+      },
+      "required": ["uid", "role", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile document scoped to the authenticated user."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/DirectiveTask" },
+      "description": "Host directives and tasks owned by userId."
+    },
+    "/users/{userId}/events/{eventId}": {
+      "schema": { "$ref": "#/entities/CelebrationBlueprint" },
+      "description": "Celebration blueprints owned by userId."
+    },
+    "/users/{userId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Multi-turn Gemini chat messages owned by userId."
+    }
+  }
+}
