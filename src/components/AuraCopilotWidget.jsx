@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAura, CHAT_MODELS, CHAT_PERSONAS } from '../context/AuraContext.jsx'
 import Icon from './Icon.jsx'
 
+/**
+ * Floating Gemini AI Copilot widget displayed across all views except /concierge-support.
+ */
 export default function AuraCopilotWidget() {
   const location = useLocation()
 
@@ -14,6 +17,12 @@ export default function AuraCopilotWidget() {
   return <CopilotContent location={location} />
 }
 
+/**
+ * Inner interactive drawer and launcher for the Aura AI Copilot.
+ *
+ * @param {Object} props - Component props
+ * @param {Object} props.location - React Router location object
+ */
 function CopilotContent({ location }) {
   const {
     user,
@@ -42,12 +51,18 @@ function CopilotContent({ location }) {
   const [lastPrompt, setLastPrompt] = useState('')
 
   const mediaRecorderRef = useRef(null)
+  const mediaStreamRef = useRef(null)
   const audioChunksRef = useRef([])
   const timerRef = useRef(null)
   const scrollContainerRef = useRef(null)
+  const inputRef = useRef(null)
 
   useEffect(() => {
-    if (copilotOpen && scrollContainerRef.current && typeof scrollContainerRef.current.scrollTo === 'function') {
+    if (
+      copilotOpen &&
+      scrollContainerRef.current &&
+      typeof scrollContainerRef.current.scrollTo === 'function'
+    ) {
       scrollContainerRef.current.scrollTo({
         top: scrollContainerRef.current.scrollHeight,
         behavior: 'smooth',
@@ -55,6 +70,19 @@ function CopilotContent({ location }) {
     }
   }, [chatMessages, chatLoading, copilotOpen])
 
+  // Close drawer on Escape key press for keyboard accessibility
+  useEffect(() => {
+    if (!copilotOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setCopilotOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [copilotOpen, setCopilotOpen])
+
+  // Ensure timers, recorder, and microphone hardware tracks are cleaned up on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -64,6 +92,18 @@ function CopilotContent({ location }) {
       ) {
         mediaRecorderRef.current.stop()
       }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop())
+      }
+    }
+  }, [])
+
+  const stopRecording = useCallback(() => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== 'inactive'
+    ) {
+      mediaRecorderRef.current.stop()
     }
   }, [])
 
@@ -71,6 +111,7 @@ function CopilotContent({ location }) {
     setMicError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaStreamRef.current = stream
       const recorder = new MediaRecorder(stream)
       audioChunksRef.current = []
 
@@ -82,6 +123,7 @@ function CopilotContent({ location }) {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop())
+        mediaStreamRef.current = null
         if (timerRef.current) clearInterval(timerRef.current)
         setIsRecording(false)
         setRecordingSeconds(0)
@@ -118,15 +160,6 @@ function CopilotContent({ location }) {
     }
   }
 
-  const stopRecording = () => {
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state !== 'inactive'
-    ) {
-      mediaRecorderRef.current.stop()
-    }
-  }
-
   const handleSendPrompt = async (promptText, fromAudio = false) => {
     const textToSend = (promptText || input).trim()
     if (!textToSend || chatLoading) return
@@ -143,10 +176,14 @@ function CopilotContent({ location }) {
         currentPage: location.pathname,
       })
       if (!result) {
-        setChatError('Aura AI was unable to generate a response. Please check your connection and retry.')
+        setChatError(
+          'Aura AI was unable to generate a response. Please check your connection and retry.'
+        )
       }
     } catch (err) {
-      setChatError(err instanceof Error ? err.message : 'Connection failed. Please retry.')
+      setChatError(
+        err instanceof Error ? err.message : 'Connection failed. Please retry.'
+      )
     }
   }
 
@@ -158,8 +195,8 @@ function CopilotContent({ location }) {
   const activePersona =
     CHAT_PERSONAS.find((p) => p.id === selectedPersona) || CHAT_PERSONAS[0]
 
-  // Page-Aware Context Quick Questions
-  const getContextSuggestions = () => {
+  // Memoized Page-Aware Context Quick Questions
+  const suggestions = useMemo(() => {
     const path = location.pathname
     if (path === '/budget') {
       return [
@@ -195,9 +232,7 @@ function CopilotContent({ location }) {
       'Lighting & sensory ambience',
       'Dates, milestones & run-of-show',
     ]
-  }
-
-  const suggestions = getContextSuggestions()
+  }, [location.pathname])
 
   return (
     <>
@@ -206,10 +241,15 @@ function CopilotContent({ location }) {
         <button
           type="button"
           onClick={() => setCopilotOpen((prev) => !prev)}
-          className="group flex items-center gap-2.5 pl-3.5 pr-4 py-3 rounded-2xl bg-gradient-to-r from-surface-container-highest via-surface-container-high to-surface-container border border-primary/35 shadow-[0_14px_38px_rgba(0,0,0,0.7),0_0_24px_rgba(192,193,255,0.22)] hover:border-secondary-fixed/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+          aria-expanded={copilotOpen}
+          aria-controls="aura-copilot-drawer"
           aria-label="Toggle Aura Gemini AI Copilot"
+          className="group flex items-center gap-2.5 pl-3.5 pr-4 py-3 rounded-2xl bg-gradient-to-r from-surface-container-highest via-surface-container-high to-surface-container border border-primary/35 shadow-[0_14px_38px_rgba(0,0,0,0.7),0_0_24px_rgba(192,193,255,0.22)] hover:border-secondary-fixed/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
         >
-          <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-primary-container to-primary flex items-center justify-center text-on-primary shadow-[0_0_16px_rgba(192,193,255,0.4)]">
+          <div
+            className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-primary-container to-primary flex items-center justify-center text-on-primary shadow-[0_0_16px_rgba(192,193,255,0.4)]"
+            aria-hidden="true"
+          >
             <Icon name={copilotOpen ? 'close' : 'auto_awesome'} className="text-[20px]" />
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-secondary-fixed ring-2 ring-surface-container-lowest" />
           </div>
@@ -229,11 +269,20 @@ function CopilotContent({ location }) {
 
       {/* Copilot Drawer Window */}
       {copilotOpen && (
-        <div className="fixed bottom-22 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[440px] max-h-[82vh] rounded-2xl bg-surface-container-low/95 backdrop-blur-2xl border border-primary/30 shadow-[0_28px_70px_rgba(0,0,0,0.85),0_0_32px_rgba(192,193,255,0.16)] flex flex-col overflow-hidden animate-scale-in">
+        <div
+          id="aura-copilot-drawer"
+          role="dialog"
+          aria-modal="false"
+          aria-label="Aura AI Copilot Assistant"
+          className="fixed bottom-22 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[440px] max-h-[82vh] rounded-2xl bg-surface-container-low/95 backdrop-blur-2xl border border-primary/30 shadow-[0_28px_70px_rgba(0,0,0,0.85),0_0_32px_rgba(192,193,255,0.16)] flex flex-col overflow-hidden animate-scale-in"
+        >
           {/* Header */}
           <div className="p-4 bg-surface-container-high/80 border-b border-outline-variant/20 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shrink-0">
+              <div
+                className="w-9 h-9 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shrink-0"
+                aria-hidden="true"
+              >
                 <Icon name={activePersona.icon} className="text-[20px]" />
               </div>
               <div className="min-w-0">
@@ -241,7 +290,10 @@ function CopilotContent({ location }) {
                   <h3 className="font-headline-sm text-[15px] text-on-surface truncate">
                     {activePersona.name}
                   </h3>
-                  <span className="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-pulse shrink-0" />
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-pulse shrink-0"
+                    aria-hidden="true"
+                  />
                 </div>
                 <p className="font-body-sm text-[11px] text-secondary-fixed truncate">
                   {activePlan?.eventName || selectedEvent.name} ({location.pathname})
@@ -273,13 +325,18 @@ function CopilotContent({ location }) {
           {/* Model & Persona Switchers */}
           <div className="px-3.5 py-2.5 bg-surface-container/90 border-b border-outline-variant/15 space-y-2">
             {/* Model Selector */}
-            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15">
+            <div
+              role="group"
+              aria-label="Select AI Model"
+              className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15"
+            >
               {CHAT_MODELS.map((m) => {
                 const active = selectedModel === m.id
                 return (
                   <button
                     key={m.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => setSelectedModel(m.id)}
                     className={`px-2 py-1.5 rounded-lg text-center transition-all cursor-pointer ${
                       active
@@ -303,13 +360,18 @@ function CopilotContent({ location }) {
             </div>
 
             {/* Persona Selector */}
-            <div className="flex items-center gap-1.5 overflow-x-auto">
+            <div
+              role="group"
+              aria-label="Select AI Persona"
+              className="flex items-center gap-1.5 overflow-x-auto"
+            >
               {CHAT_PERSONAS.map((p) => {
                 const active = selectedPersona === p.id
                 return (
                   <button
                     key={p.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => setSelectedPersona(p.id)}
                     className={`px-2.5 py-1 rounded-lg font-label-md text-[11px] flex items-center gap-1 shrink-0 transition-all cursor-pointer ${
                       active
@@ -326,14 +388,18 @@ function CopilotContent({ location }) {
           </div>
 
           {/* Quick Page Suggestions Pills */}
-          <div className="px-3.5 py-2 bg-surface-container/60 border-b border-outline-variant/15 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap">
+          <div
+            role="group"
+            aria-label="Suggested contextual prompts"
+            className="px-3.5 py-2 bg-surface-container/60 border-b border-outline-variant/15 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap"
+          >
             <span className="font-label-caps text-[9px] text-secondary-fixed uppercase tracking-wider shrink-0 flex items-center gap-1">
               <Icon name="bolt" className="text-[12px]" />
               Contextual:
             </span>
-            {suggestions.map((s, idx) => (
+            {suggestions.map((s) => (
               <button
-                key={idx}
+                key={s}
                 type="button"
                 onClick={() => handleSendPrompt(s)}
                 className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface text-[11px] transition-colors shrink-0 border border-outline-variant/20 cursor-pointer"
@@ -346,8 +412,10 @@ function CopilotContent({ location }) {
           {/* Messages Thread */}
           <div
             ref={scrollContainerRef}
+            role="log"
             aria-live="polite"
             aria-atomic="false"
+            aria-label="Conversation history"
             className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[260px] max-h-[360px]"
           >
             {chatMessages.map((msg) => {
@@ -395,8 +463,15 @@ function CopilotContent({ location }) {
 
             {/* Loading Indicator */}
             {chatLoading && (
-              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-surface-container-high/70 border border-primary/20 text-on-surface font-body-sm text-body-sm animate-fade-in">
-                <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-center gap-2.5 p-3 rounded-xl bg-surface-container-high/70 border border-primary/20 text-on-surface font-body-sm text-body-sm animate-fade-in"
+              >
+                <div
+                  className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0"
+                  aria-hidden="true"
+                />
                 <span className="text-secondary-fixed text-[12px]">
                   Arthur is consulting {selectedModel} for {activePlan?.eventName || 'your event'}...
                 </span>
@@ -405,7 +480,10 @@ function CopilotContent({ location }) {
 
             {/* Error Message Card with Retry */}
             {chatError && !chatLoading && (
-              <div className="p-3 rounded-xl bg-error-container/30 border border-error/30 text-on-error-container text-body-sm flex flex-col gap-2 animate-fade-in">
+              <div
+                role="alert"
+                className="p-3 rounded-xl bg-error-container/30 border border-error/30 text-on-error-container text-body-sm flex flex-col gap-2 animate-fade-in"
+              >
                 <div className="flex items-center gap-2">
                   <Icon name="error" className="text-error text-[18px]" />
                   <span className="font-medium text-[12px]">{chatError}</span>
@@ -425,10 +503,17 @@ function CopilotContent({ location }) {
 
           {/* Voice Recording Banner / Error */}
           {(isRecording || transcribing || micError) && (
-            <div className="px-4 py-2 bg-surface-container-highest border-t border-outline-variant/20 flex items-center justify-between text-body-sm">
+            <div
+              role="status"
+              aria-live="polite"
+              className="px-4 py-2 bg-surface-container-highest border-t border-outline-variant/20 flex items-center justify-between text-body-sm"
+            >
               {isRecording && (
                 <div className="flex items-center gap-2 text-secondary-fixed">
-                  <span className="w-2.5 h-2.5 rounded-full bg-error animate-ping" />
+                  <span
+                    className="w-2.5 h-2.5 rounded-full bg-error animate-ping"
+                    aria-hidden="true"
+                  />
                   <span className="font-label-md text-[12px]">
                     Recording voice directive ({recordingSeconds}s)...
                   </span>
@@ -443,12 +528,15 @@ function CopilotContent({ location }) {
                 </div>
               )}
               {micError && !isRecording && !transcribing && (
-                <div className="flex items-center justify-between w-full text-error text-[11px]">
+                <div
+                  role="alert"
+                  className="flex items-center justify-between w-full text-error text-[11px]"
+                >
                   <span>{micError}</span>
                   <button
                     type="button"
                     onClick={() => setMicError(null)}
-                    className="underline ml-2"
+                    className="underline ml-2 cursor-pointer"
                   >
                     Dismiss
                   </button>
@@ -466,6 +554,7 @@ function CopilotContent({ location }) {
               type="button"
               onClick={isRecording ? stopRecording : startRecording}
               disabled={transcribing}
+              aria-pressed={isRecording}
               aria-label={isRecording ? 'Stop voice recording' : 'Record voice directive'}
               title={
                 isRecording
@@ -484,6 +573,7 @@ function CopilotContent({ location }) {
               Ask Aura Copilot a question
             </label>
             <input
+              ref={inputRef}
               id="copilot-input-field"
               type="text"
               value={input}

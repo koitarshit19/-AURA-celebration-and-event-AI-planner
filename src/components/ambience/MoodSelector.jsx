@@ -55,7 +55,7 @@ function MoodSelectorComponent({ currentMood, onSelectMood }) {
                 type="button"
                 onClick={() => onSelectMood(mood.id)}
                 aria-pressed={isSelected}
-                aria-label={`Select ${mood.name} mood.${mood.desc}`}
+                aria-label={`Select ${mood.name} mood. ${mood.desc}`}
                 className={`group relative text-left p-4 rounded-xl transition-all duration-500 overflow-hidden cursor-pointer ${
                   isSelected
                     ? `bg-surface-container-high/90 ${mood.ringCls}`
@@ -93,4 +93,23 @@ function MoodSelectorComponent({ currentMood, onSelectMood }) {
                     }`}
                     aria-hidden="true"
                   >
-                    <span className={`w-1
+                    <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? mood.dotBg : 'bg-transparent'}`} />
+                  </span>
+                </div>
+                <p className="relative z-10 font-body-sm text-body-sm text-on-surface-variant mt-3 line-clamp-2">
+                  {mood.desc}
+                </p>
+                <div className="relative z-10 mt-3 pt-2 flex items-center justify-between text-secondary-fixed-dim font-label-caps text-label-caps">
+                  <span aria-label={`Lux level: ${mood.lux}`}>LUX: {mood.lux}</span>
+                  <span aria-label={`CRI level: ${mood.cri}`}>CRI: {mood.cri}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export default memo(MoodSelectorComponent)

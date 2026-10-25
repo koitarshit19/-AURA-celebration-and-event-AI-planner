@@ -4,6 +4,10 @@ import { useAura } from '../context/AuraContext.jsx'
 import TimelineNode from '../components/schedule/TimelineNode.jsx'
 import WeatherRadarCard from '../components/schedule/WeatherRadarCard.jsx'
 
+/**
+ * Schedule page component displaying day-of run-of-show cues and milestone countdowns,
+ * paired with real-time weather telemetry and schedule re-pacing via Gemini.
+ */
 export default function Schedule() {
   const { activePlan, setCopilotOpen } = useAura()
   const [activeTab, setActiveTab] = useState('dayof') // 'dayof' | 'countdown'
@@ -56,8 +60,8 @@ export default function Schedule() {
     <div className="flex flex-col w-full animate-fade-up">
       <div className="relative w-full overflow-hidden pb-space-xl">
         {/* Ambient atmospheric glows */}
-        <div className="absolute -top-32 right-1/4 w-[500px] h-[350px] bg-tertiary-container/15 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute top-1/2 -left-20 w-[420px] h-[420px] bg-secondary-container/20 blur-[140px] rounded-full pointer-events-none" />
+        <div className="absolute -top-32 right-1/4 w-[500px] h-[350px] bg-tertiary-container/15 blur-[120px] rounded-full pointer-events-none" aria-hidden="true" />
+        <div className="absolute top-1/2 -left-20 w-[420px] h-[420px] bg-secondary-container/20 blur-[140px] rounded-full pointer-events-none" aria-hidden="true" />
 
         <div className="max-w-7xl mx-auto px-margin-sm lg:px-margin space-y-space-lg">
           {/* HEADER SECTION */}
@@ -65,11 +69,11 @@ export default function Schedule() {
             <div className="space-y-space-xs max-w-2xl">
               <div className="flex flex-wrap items-center gap-space-sm">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container/40 text-secondary-fixed font-label-caps text-label-caps uppercase tracking-widest shadow-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-ping" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-ping" aria-hidden="true" />
                   Live Sync Matrix
                 </span>
                 <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
-                  <Icon name="verified" className="text-[15px] text-primary" />
+                  <Icon name="verified" className="text-[15px] text-primary" aria-hidden="true" />
                   Algorithmic Time Buffer: +25m Nominal
                 </span>
               </div>
@@ -85,8 +89,11 @@ export default function Schedule() {
             </div>
 
             {/* TAB CONTROLS */}
-            <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-surface-container-low shadow-inner shrink-0 self-start lg:self-auto border border-white/[0.05]">
+            <div role="tablist" aria-label="Schedule views" className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-surface-container-low shadow-inner shrink-0 self-start lg:self-auto border border-white/[0.05]">
               <button
+                role="tab"
+                aria-selected={activeTab === 'dayof'}
+                aria-controls="schedule-panel"
                 onClick={() => setActiveTab('dayof')}
                 className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-lg font-label-md text-label-md transition-all cursor-pointer ${
                   activeTab === 'dayof'
@@ -95,11 +102,14 @@ export default function Schedule() {
                 }`}
                 type="button"
               >
-                <Icon name="view_timeline" className="text-[18px]" />
+                <Icon name="view_timeline" className="text-[18px]" aria-hidden="true" />
                 <span>Day-of Run of Show ({dayOfItems.length || timeline.length})</span>
               </button>
 
               <button
+                role="tab"
+                aria-selected={activeTab === 'countdown'}
+                aria-controls="schedule-panel"
                 onClick={() => setActiveTab('countdown')}
                 className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-lg font-label-md text-label-md transition-all cursor-pointer ${
                   activeTab === 'countdown'
@@ -108,20 +118,20 @@ export default function Schedule() {
                 }`}
                 type="button"
               >
-                <Icon name="calendar_month" className="text-[18px]" />
+                <Icon name="calendar_month" className="text-[18px]" aria-hidden="true" />
                 <span>Milestone Countdown ({countdownItems.length || timeline.length})</span>
               </button>
             </div>
           </div>
 
           {/* MAIN GRID */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start animate-fade-up stagger-2">
+          <div id="schedule-panel" role="tabpanel" className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start animate-fade-up stagger-2">
             {/* TIMELINE COLUMN */}
             <div className="lg:col-span-8 space-y-space-md">
               {/* CURRENT PHASE BANNER */}
               <div className="p-space-md rounded-2xl bg-surface-container-low/70 backdrop-blur-xl shadow-xl flex flex-wrap items-center justify-between gap-space-md border border-white/[0.04]">
                 <div className="flex items-center gap-space-md">
-                  <div className="w-11 h-11 rounded-xl bg-surface-container-high flex items-center justify-center text-secondary-fixed shadow-sm">
+                  <div className="w-11 h-11 rounded-xl bg-surface-container-high flex items-center justify-center text-secondary-fixed shadow-sm" aria-hidden="true">
                     <Icon name="timelapse" className="text-[24px]" />
                   </div>
                   <div>

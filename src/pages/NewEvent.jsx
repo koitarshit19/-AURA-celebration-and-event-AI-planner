@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAura } from '../context/AuraContext.jsx'
 import Icon from '../components/Icon.jsx'
-
 import { TYPOLOGY_OPTIONS, VIBE_OPTIONS } from '../data/wizardData.js'
 
+/**
+ * NewEvent wizard component for configuring celebration parameters
+ * and triggering server-side Gemini plan generation.
+ */
 export default function NewEvent() {
   const { generatePlanWithGemini, planGenerating } = useAura()
   const navigate = useNavigate()
@@ -43,10 +46,10 @@ export default function NewEvent() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
                 <span className="font-label-caps text-label-caps uppercase tracking-widest text-secondary-fixed flex items-center gap-1.5">
-                  <span className="inline-block w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_rgba(240,225,195,0.9)] animate-ping" />
+                  <span className="inline-block w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_rgba(240,225,195,0.9)] animate-ping" aria-hidden="true" />
                   Autonomous Blueprint Generator
                 </span>
-                <span className="text-outline-variant font-body-sm text-body-sm">/</span>
+                <span className="text-outline-variant font-body-sm text-body-sm" aria-hidden="true">/</span>
                 <span className="font-label-md text-label-md text-on-surface-variant">
                   Gemini Server-Side Engine
                 </span>
@@ -67,7 +70,7 @@ export default function NewEvent() {
                   Ready to Synthesize
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 w-60 h-2 bg-surface-container-high rounded-full overflow-hidden p-0.5 shadow-inner">
+              <div className="flex items-center gap-1.5 w-60 h-2 bg-surface-container-high rounded-full overflow-hidden p-0.5 shadow-inner" aria-hidden="true">
                 <div className="h-full bg-gradient-to-r from-primary to-secondary-fixed rounded-full w-[85%] shadow-[0_0_12px_rgba(192,193,255,0.6)]" />
               </div>
               <span className="font-body-sm text-body-sm text-on-surface-variant">
@@ -78,9 +81,9 @@ export default function NewEvent() {
 
           {/* Error Banner */}
           {errorMsg && (
-            <div className="mb-6 p-4 rounded-xl bg-error-container/40 border border-error/30 text-on-error-container flex items-center justify-between gap-3">
+            <div role="alert" className="mb-6 p-4 rounded-xl bg-error-container/40 border border-error/30 text-on-error-container flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Icon name="error" className="text-error text-[20px]" />
+                <Icon name="error" className="text-error text-[20px]" aria-hidden="true" />
                 <span className="font-body-md text-body-md">{errorMsg}</span>
               </div>
               <button
@@ -112,7 +115,7 @@ export default function NewEvent() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+                <div role="group" aria-label="Event type archetypes" className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
                   {TYPOLOGY_OPTIONS.map((opt) => {
                     const isSelected = eventType === opt.id
                     return (
@@ -121,6 +124,7 @@ export default function NewEvent() {
                         role="button"
                         tabIndex={0}
                         aria-pressed={isSelected}
+                        aria-label={`Select ${opt.title} archetype`}
                         onClick={() => setEventType(opt.id)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -135,7 +139,7 @@ export default function NewEvent() {
                         }`}
                       >
                         {isSelected && (
-                          <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-secondary-fixed flex items-center justify-center shadow-[0_0_12px_rgba(240,225,195,0.8)]">
+                          <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-secondary-fixed flex items-center justify-center shadow-[0_0_12px_rgba(240,225,195,0.8)]" aria-hidden="true">
                             <Icon name="check" fill className="text-on-secondary-fixed text-[15px]" />
                           </div>
                         )}
@@ -146,6 +150,7 @@ export default function NewEvent() {
                                 ? 'bg-primary text-on-primary shadow-[0_0_16px_rgba(192,193,255,0.3)]'
                                 : 'bg-surface-container-highest text-on-surface-variant group-hover:text-primary'
                             }`}
+                            aria-hidden="true"
                           >
                             <Icon name={opt.icon} className="text-[26px]" />
                           </div>
@@ -185,7 +190,7 @@ export default function NewEvent() {
                   <div className="rounded-xl p-5 bg-surface-container/60 backdrop-blur-md shadow-md border border-outline-variant/15 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <label htmlFor="event-date-input" className="font-label-md text-label-md text-on-surface flex items-center gap-1.5">
-                        <Icon name="calendar_month" className="text-secondary text-[16px]" />
+                        <Icon name="calendar_month" className="text-secondary text-[16px]" aria-hidden="true" />
                         Target Event Date
                       </label>
                       <span className="font-label-caps text-label-caps text-secondary-fixed uppercase">
@@ -193,7 +198,7 @@ export default function NewEvent() {
                       </span>
                     </div>
                     <div className="relative flex items-center rounded-lg bg-surface-container-lowest px-3 py-2 border border-outline-variant/20">
-                      <Icon name="event_available" className="text-secondary-fixed text-[20px] mr-2 shrink-0" />
+                      <Icon name="event_available" className="text-secondary-fixed text-[20px] mr-2 shrink-0" aria-hidden="true" />
                       <input
                         id="event-date-input"
                         type="text"
@@ -209,7 +214,7 @@ export default function NewEvent() {
                   <div className="rounded-xl p-5 bg-surface-container/60 backdrop-blur-md shadow-md border border-outline-variant/15 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <label htmlFor="event-city-input" className="font-label-md text-label-md text-on-surface flex items-center gap-1.5">
-                        <Icon name="location_on" className="text-primary text-[16px]" />
+                        <Icon name="location_on" className="text-primary text-[16px]" aria-hidden="true" />
                         Destination / City
                       </label>
                       <span className="font-label-caps text-label-caps text-primary tracking-wider uppercase">
@@ -217,7 +222,7 @@ export default function NewEvent() {
                       </span>
                     </div>
                     <div className="relative flex items-center rounded-lg bg-surface-container-lowest px-3 py-2 border border-outline-variant/20">
-                      <Icon name="pin_drop" className="text-primary text-[20px] mr-2 shrink-0" />
+                      <Icon name="pin_drop" className="text-primary text-[20px] mr-2 shrink-0" aria-hidden="true" />
                       <input
                         id="event-city-input"
                         type="text"
@@ -233,7 +238,7 @@ export default function NewEvent() {
                   <div className="rounded-xl p-5 bg-surface-container/60 backdrop-blur-md shadow-md border border-outline-variant/15 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <label htmlFor="guest-range-slider" className="font-label-md text-label-md text-on-surface flex items-center gap-1.5">
-                        <Icon name="group" className="text-secondary text-[16px]" />
+                        <Icon name="group" className="text-secondary text-[16px]" aria-hidden="true" />
                         Curated Guest Attendance
                       </label>
                       <span className="font-label-caps text-label-caps text-secondary-fixed bg-secondary-container/50 px-2 py-0.5 rounded uppercase">
@@ -272,7 +277,7 @@ export default function NewEvent() {
                   <div className="rounded-xl p-5 bg-surface-container/60 backdrop-blur-md shadow-md border border-outline-variant/15 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <label htmlFor="budget-range-slider" className="font-label-md text-label-md text-on-surface flex items-center gap-1.5">
-                        <Icon name="account_balance_wallet" className="text-secondary text-[16px]" />
+                        <Icon name="account_balance_wallet" className="text-secondary text-[16px]" aria-hidden="true" />
                         Allocated Budget Envelope
                       </label>
                       <span className="font-label-caps text-label-caps text-primary bg-primary-container/20 px-2 py-0.5 rounded uppercase">
@@ -285,7 +290,7 @@ export default function NewEvent() {
                         <span className="text-sm font-normal text-on-surface-variant">USD</span>
                       </span>
                       <span className="font-body-sm text-body-sm text-secondary-fixed font-medium flex items-center gap-1">
-                        <Icon name="trending_up" className="text-[14px]" />
+                        <Icon name="trending_up" className="text-[14px]" aria-hidden="true" />
                         ${Math.round(budget / (guestCount || 1))}/guest
                       </span>
                     </div>
@@ -323,12 +328,12 @@ export default function NewEvent() {
                     </h2>
                   </div>
                   <span className="font-label-caps text-label-caps text-secondary-fixed flex items-center gap-1">
-                    <Icon name="palette" className="text-[13px]" />
+                    <Icon name="palette" className="text-[13px]" aria-hidden="true" />
                     Atmospheric Tone
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+                <div role="group" aria-label="Aesthetic vibe options" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
                   {VIBE_OPTIONS.map((v) => {
                     const isSelected = vibe === v.id
                     return (
@@ -337,6 +342,7 @@ export default function NewEvent() {
                         role="button"
                         tabIndex={0}
                         aria-pressed={isSelected}
+                        aria-label={`Select ${v.title} aesthetic vibe`}
                         onClick={() => setVibe(v.id)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -356,14 +362,14 @@ export default function NewEvent() {
                             alt={v.title}
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-surface-container-low/30 to-transparent" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-surface-container-low/30 to-transparent" aria-hidden="true" />
                           {isSelected && (
                             <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-caps text-[9px] uppercase tracking-wider font-bold shadow-md">
                               Selected
                             </div>
                           )}
                           <div className="absolute bottom-2 left-3 flex items-center gap-1.5">
-                            <span className={`w-2.5 h-2.5 rounded-full ${v.dot}`} />
+                            <span className={`w-2.5 h-2.5 rounded-full ${v.dot}`} aria-hidden="true" />
                             <span className="font-label-caps text-label-caps text-secondary-fixed uppercase tracking-wider">
                               {v.colorLabel}
                             </span>
@@ -389,7 +395,7 @@ export default function NewEvent() {
               <div className="sticky top-24 rounded-2xl bg-surface-container/80 backdrop-blur-2xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.08)] flex flex-col gap-space-md border border-outline-variant/20">
                 <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
                   <div className="flex items-center gap-2.5">
-                    <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container-high text-primary">
+                    <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container-high text-primary" aria-hidden="true">
                       <Icon name="neurology" className="text-[18px]" />
                       <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_rgba(240,225,195,1)]" />
                     </div>
@@ -441,19 +447,19 @@ export default function NewEvent() {
                   </span>
                   <div className="space-y-1.5 text-[11px] text-on-surface-variant">
                     <div className="flex items-center gap-1.5 text-on-surface">
-                      <Icon name="check_circle" className="text-primary text-[14px]" />
+                      <Icon name="check_circle" className="text-primary text-[14px]" aria-hidden="true" />
                       <span>Reconciled budget categories summing to ${budget.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-on-surface">
-                      <Icon name="check_circle" className="text-secondary-fixed text-[14px]" />
+                      <Icon name="check_circle" className="text-secondary-fixed text-[14px]" aria-hidden="true" />
                       <span>7-stage dated timeline &amp; day-of run-of-show cues</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-on-surface">
-                      <Icon name="check_circle" className="text-tertiary text-[14px]" />
+                      <Icon name="check_circle" className="text-tertiary text-[14px]" aria-hidden="true" />
                       <span>Curated vendor checklist with SLA requirements</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-on-surface">
-                      <Icon name="check_circle" className="text-emerald-400 text-[14px]" />
+                      <Icon name="check_circle" className="text-emerald-400 text-[14px]" aria-hidden="true" />
                       <span>5 personalized ideas (Theme, Music/DJ, Lighting, Dining, Space)</span>
                     </div>
                   </div>
@@ -469,7 +475,7 @@ export default function NewEvent() {
                   >
                     {planGenerating ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full border-2 border-on-primary border-t-transparent animate-spin" />
+                        <div className="w-5 h-5 rounded-full border-2 border-on-primary border-t-transparent animate-spin" aria-hidden="true" />
                         <span className="tracking-wide">Synthesizing with Gemini...</span>
                       </div>
                     ) : (
@@ -478,18 +484,20 @@ export default function NewEvent() {
                           name="auto_awesome"
                           fill
                           className="text-[20px] transition-transform duration-500 group-hover:rotate-180"
+                          aria-hidden="true"
                         />
                         <span className="tracking-wide">Generate My Plan</span>
                         <Icon
                           name="arrow_forward"
                           className="text-[18px] transition-transform duration-300 group-hover:translate-x-1"
+                          aria-hidden="true"
                         />
                       </>
                     )}
                   </button>
 
                   <div className="flex items-center justify-center gap-2 text-on-surface-variant font-body-sm text-[11px] text-center pt-1">
-                    <Icon name="lock" className="text-secondary-fixed text-[14px]" />
+                    <Icon name="lock" className="text-secondary-fixed text-[14px]" aria-hidden="true" />
                     <span>Protected by Server-Side Gemini API &amp; Local Persistence</span>
                   </div>
                 </div>

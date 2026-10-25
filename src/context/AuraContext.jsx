@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import {
   collection,
   doc,
@@ -41,6 +41,13 @@ export {
 
 const AuraContext = createContext(null)
 
+/**
+ * Global state provider managing authentication, Firestore synchronization,
+ * active event blueprints, and Gemini AI copilot interactions.
+ *
+ * @param {Object} props - Component props
+ * @param {import('react').ReactNode} props.children - Child tree
+ */
 export function AuraProvider({ children }) {
   const [user, setUser] = useState(null)
   const [authReady, setAuthReady] = useState(false)
@@ -91,8 +98,10 @@ export function AuraProvider({ children }) {
   const [transcribing, setTranscribing] = useState(false)
   const [copilotOpen, setCopilotOpen] = useState(false)
 
-  const selectedEvent =
-    events.find((e) => e.id === selectedEventId) || events[0] || DEFAULT_EVENTS[0]
+  const selectedEvent = useMemo(
+    () => events.find((e) => e.id === selectedEventId) || events[0] || DEFAULT_EVENTS[0],
+    [events, selectedEventId]
+  )
 
   // Synchronize activePlan into localStorage whenever it changes
   useEffect(() => {
@@ -149,19 +158,21 @@ export function AuraProvider({ children }) {
         const existingTasks = await getDocs(collection(db, tasksPath))
         if (existingTasks.empty) {
           const now = new Date().toISOString()
-          for (const t of DEFAULT_TASKS) {
-            await setDoc(doc(db, tasksPath, t.id), {
-              uid,
-              title: t.title,
-              due: t.due,
-              dueCls: t.dueCls,
-              desc: t.desc,
-              category: t.category || 'Executive Directive',
-              priority: t.priority,
-              done: t.done,
-              createdAt: now,
-            })
-          }
+          await Promise.all(
+            DEFAULT_TASKS.map((t) =>
+              setDoc(doc(db, tasksPath, t.id), {
+                uid,
+                title: t.title,
+                due: t.due,
+                dueCls: t.dueCls,
+                desc: t.desc,
+                category: t.category || 'Executive Directive',
+                priority: t.priority,
+                done: t.done,
+                createdAt: now,
+              })
+            )
+          )
         }
       } catch (err) {
         console.error('Seed check error:', err)
@@ -561,9 +572,7 @@ ${activePlan.budgetBreakdown?.map((b) => `- ${b.category}: $${b.amount.toLocaleS
       const path = `users/${user.uid}/messages`
       try {
         const snap = await getDocs(collection(db, path))
-        for (const d of snap.docs) {
-          await deleteDoc(doc(db, path, d.id))
-        }
+        await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, path, d.id))))
       } catch (err) {
         console.error('Error clearing chat history:', err)
       }
@@ -599,44 +608,81 @@ ${activePlan.budgetBreakdown?.map((b) => `- ${b.category}: $${b.amount.toLocaleS
     }
   }, [])
 
+  const setSelectedEvent = useCallback((ev) => {
+    if (ev && ev.id) setSelectedEventId(ev.id)
+  }, [])
+
+  // Memoize context value to prevent unnecessary re-renders across consumer components
+  const contextValue = useMemo(
+    () => ({
+      user,
+      authReady,
+      authError,
+      signInWithGoogle,
+      signOutUser,
+      activePlan,
+      generatePlanWithGemini,
+      updateActivePlan,
+      planGenerating,
+      events,
+      selectedEvent,
+      setSelectedEvent,
+      createEventBlueprint,
+      tasks,
+      addTask,
+      toggleTask,
+      chatMessages,
+      sendChatMessage,
+      clearChatHistory,
+      transcribeAudioBlob,
+      chatLoading,
+      transcribing,
+      selectedModel,
+      setSelectedModel,
+      selectedPersona,
+      setSelectedPersona,
+      copilotOpen,
+      setCopilotOpen,
+    }),
+    [
+      user,
+      authReady,
+      authError,
+      signInWithGoogle,
+      signOutUser,
+      activePlan,
+      generatePlanWithGemini,
+      updateActivePlan,
+      planGenerating,
+      events,
+      selectedEvent,
+      setSelectedEvent,
+      createEventBlueprint,
+      tasks,
+      addTask,
+      toggleTask,
+      chatMessages,
+      sendChatMessage,
+      clearChatHistory,
+      transcribeAudioBlob,
+      chatLoading,
+      transcribing,
+      selectedModel,
+      selectedPersona,
+      copilotOpen,
+    ]
+  )
+
   return (
-    <AuraContext.Provider
-      value={{
-        user,
-        authReady,
-        authError,
-        signInWithGoogle,
-        signOutUser,
-        activePlan,
-        generatePlanWithGemini,
-        updateActivePlan,
-        planGenerating,
-        events,
-        selectedEvent,
-        setSelectedEvent: (ev) => setSelectedEventId(ev.id),
-        createEventBlueprint,
-        tasks,
-        addTask,
-        toggleTask,
-        chatMessages,
-        sendChatMessage,
-        clearChatHistory,
-        transcribeAudioBlob,
-        chatLoading,
-        transcribing,
-        selectedModel,
-        setSelectedModel,
-        selectedPersona,
-        setSelectedPersona,
-        copilotOpen,
-        setCopilotOpen,
-      }}
-    >
+    <AuraContext.Provider value={contextValue}>
       {children}
     </AuraContext.Provider>
   )
 }
 
+/**
+ * Custom hook to access the AuraContext state and dispatch actions.
+ */
 export function useAura() {
   const ctx = useContext(AuraContext)
   if (!ctx) {

@@ -21,6 +21,8 @@ const ALLOWED_AUDIO_MIMES = new Set([
   'audio/x-m4a',
 ]);
 
+const BASE64_REGEX = /^[A-Za-z0-9+/]+={0,2}$/;
+
 const PERSONA_PROMPTS: Record<string, string> = {
   arthur_vance: `You are Arthur Vance, Senior Executive Producer & Certified Master Sommelier at Aura (Nocturne Luminary Private Client Concierge).
 You oversee high-stakes Napa Valley estate galas, private soirées, and milestone celebrations (currently focused on Julian & Maya's Autumn Gala at Meadowood Estate, Napa Valley, $75,000 cap, 120 guests, October 24, 2025).
@@ -35,19 +37,19 @@ You specialize in luxury celebration budget optimization, off-peak delivery ince
 Provide sharp financial breakdowns, concrete dollar savings, and risk-mitigated contract clauses.`,
 };
 
-// In-memory sliding window rate limiter for GenAI endpoints
 interface RateLimitRecord {
   timestamps: number[];
 }
 const rateLimitStore = new Map<string, RateLimitRecord>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 35; // 35 requests per minute per IP
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS_PER_WINDOW = 35;
 
 function sanitizeString(input: unknown, maxLen = 300): string {
   if (typeof input !== 'string') return '';
   return input
     .trim()
-    .replace(/[<>]/g, '') // strip HTML tag brackets
+    .replace(/[<>]/g, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
     .slice(0, maxLen);
 }
 
@@ -60,7 +62,6 @@ function rateLimiter(req: Request, res: Response, next: NextFunction): void {
   const now = Date.now();
   const record = rateLimitStore.get(ip) || { timestamps: [] };
 
-  // Filter out timestamps older than sliding window
   record.timestamps = record.timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
 
   if (record.timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
@@ -74,10 +75,12 @@ function rateLimiter(req: Request, res: Response, next: NextFunction): void {
   record.timestamps.push(now);
   rateLimitStore.set(ip, record);
 
-  // Periodic cleanup if store grows large
   if (rateLimitStore.size > 2000) {
     for (const [key, value] of rateLimitStore.entries()) {
-      if (value.timestamps.length === 0 || now - value.timestamps[value.timestamps.length - 1] > RATE_LIMIT_WINDOW_MS) {
+      if (
+        value.timestamps.length === 0 ||
+        now - value.timestamps[value.timestamps.length - 1] > RATE_LIMIT_WINDOW_MS
+      ) {
         rateLimitStore.delete(key);
       }
     }
@@ -86,42 +89,52 @@ function rateLimiter(req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
+let cachedGenAIClient: GoogleGenAI | null = null;
+
 function getGenAIClient(): GoogleGenAI {
+  if (cachedGenAIClient) return cachedGenAIClient;
+
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured on the server.');
   }
-  return new GoogleGenAI({
+  cachedGenAIClient = new GoogleGenAI({
     apiKey,
-    httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
   });
+  return cachedGenAIClient;
 }
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
-  // Security headers
-  app.use((_req, res, next) => {
+  app.disable('x-powered-by');
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=(self)');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https:;"
+    );
     next();
   });
 
-  // Limit request body to 6MB (sufficient for audio base64 without enabling memory exhaustion)
   app.use(express.json({ limit: '6mb' }));
-
-  // Apply rate limiter on all /api/gemini routes
   app.use('/api/gemini', rateLimiter);
 
-  // Health check endpoint
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'Aura Celebration Intelligence Engine' });
+  app.get('/api/health', (req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      service: 'Aura Celebration Intelligence Engine',
+      uptime: Math.floor(process.uptime()),
+    });
   });
 
-  // Multi-turn Gemini Chat Endpoint
   app.post('/api/gemini/chat', async (req: Request, res: Response): Promise<void> => {
     try {
       const {
@@ -142,7 +155,9 @@ async function startServer() {
       const baseSystemInstruction = PERSONA_PROMPTS[safePersonaKey];
 
       const safeCurrentPage = sanitizeString(currentPage, 60) || '/';
-      const safeEventContext = sanitizeString(eventContext, 1500) || 'Julian & Maya Autumn Gala, Napa Valley, $75,000 budget, 120 guests';
+      const safeEventContext =
+        sanitizeString(eventContext, 1500) ||
+        'Julian & Maya Autumn Gala, Napa Valley, $75,000 budget, 120 guests';
 
       const pageGuidance = `
 Current User Page: ${safeCurrentPage}
@@ -155,9 +170,9 @@ Current User Page: ${safeCurrentPage}
       const systemInstruction = `${baseSystemInstruction}\n\n${pageGuidance}\n\nActive Celebration Context:\n${safeEventContext}`;
 
       const sanitizedContents = messages
-        .filter((m) => m && typeof m.text === 'string' && m.text.trim().length > 0)
-        .slice(-20) // enforce window of last 20 messages max
-        .map((m) => ({
+        .filter((m: any) => m && typeof m.text === 'string' && m.text.trim().length > 0)
+        .slice(-20)
+        .map((m: any) => ({
           role: m.role === 'model' ? 'model' : 'user',
           parts: [{ text: sanitizeString(m.text, 2000) }],
         }));
@@ -186,15 +201,14 @@ Current User Page: ${safeCurrentPage}
         persona: safePersonaKey,
       });
     } catch (error: unknown) {
-      console.error('Error in /api/gemini/chat:', error instanceof Error ? error.message : 'Unknown');
-      // Do not leak stack traces or internal secrets to user
+      const errorMessage = error instanceof Error ? error.message : 'Unknown';
+      console.error('Error in /api/gemini/chat:', errorMessage);
       res.status(500).json({
         error: 'Aura AI engine is currently calibrating. Please verify connection and try again.',
       });
     }
   });
 
-  // Dedicated Structured Plan Generation Endpoint
   app.post('/api/gemini/generate-plan', async (req: Request, res: Response): Promise<void> => {
     try {
       const {
@@ -206,7 +220,6 @@ Current User Page: ${safeCurrentPage}
         vibe = 'Romantic & Ethereal',
       } = req.body || {};
 
-      // Sanitize inputs and clamp numeric bounds
       const safeEventType = sanitizeString(eventType, 80) || 'Weddings & Galas';
       const safeDate = sanitizeString(date, 60) || 'October 24, 2025';
       const safeCity = sanitizeString(city, 120) || 'St. Helena & Napa Valley, CA';
@@ -230,7 +243,7 @@ Generate an ultra-curated, highly realistic, professional event blueprint for th
 Respond ONLY with valid, raw JSON (no markdown formatting, no code blocks, no backticks, no comments).
 The JSON object MUST strictly adhere to this exact structure:
 {
-  "eventName": "A compelling, opulent title for this event (e.g., 'The St. Helena Autumn Gala' or 'Monte Carlo Midnight Soirée')",
+  "eventName": "A compelling, opulent title for this event",
   "eventType": "${safeEventType}",
   "city": "${safeCity}",
   "date": "${safeDate}",
@@ -240,188 +253,25 @@ The JSON object MUST strictly adhere to this exact structure:
   "summary": "2-3 sentences summarizing the vision, sensory pacing, and executive direction.",
   "vitalityScore": 98,
   "budgetBreakdown": [
-    {
-      "category": "Venue & Estate",
-      "amount": <number>,
-      "percentage": <number>,
-      "desc": "Short description of venue fee or site lease"
-    },
-    {
-      "category": "Catering & Cellar",
-      "amount": <number>,
-      "percentage": <number>,
-      "desc": "Chef, multi-course dining, premium wine/cocktails"
-    },
-    {
-      "category": "Floral & Scenic Decor",
-      "amount": <number>,
-      "percentage": <number>,
-      "desc": "Tablescapes, botanical installations, entry arch"
-    },
-    {
-      "category": "Music & Entertainment",
-      "amount": <number>,
-      "percentage": <number>,
-      "desc": "Headline DJ, sound engineering, live acoustic musicians"
-    },
-    {
-      "category": "Lighting & Ambience",
-      "amount": <number>,
-      "percentage": <number>,
-      "desc": "DMX ambient lighting, warm amber washes, candle arrays"
-    },
-    {
-      "category": "Photography & Cinema",
-      "amount": <number>,
-      "percentage": <number>,
-      "desc": "Editorial photography, drone capture, color-graded highlight film"
-    },
-    {
-      "category": "Logistics & Staffing",
-      "amount": <number>,
-      "percentage": <number>,
-      "desc": "VIP valet, event security, guest shuttle transport"
-    },
-    {
-      "category": "Smart Contingency Buffer",
-      "amount": <number>,
-      "percentage": <number>,
-      "desc": "Microclimate buffer, radiant heaters, last-minute overtime reserve"
-    }
+    { "category": "Venue & Estate", "amount": 25000, "percentage": 33.3, "desc": "Venue fee" },
+    { "category": "Catering & Cellar", "amount": 25000, "percentage": 33.3, "desc": "Catering" },
+    { "category": "Floral & Scenic Decor", "amount": 10000, "percentage": 13.3, "desc": "Decor" },
+    { "category": "Music & Entertainment", "amount": 5000, "percentage": 6.7, "desc": "DJ" },
+    { "category": "Lighting & Ambience", "amount": 4000, "percentage": 5.3, "desc": "Lighting" },
+    { "category": "Photography & Cinema", "amount": 3000, "percentage": 4.0, "desc": "Photo" },
+    { "category": "Logistics & Staffing", "amount": 2000, "percentage": 2.7, "desc": "Valet" },
+    { "category": "Smart Contingency Buffer", "amount": 1000, "percentage": 1.4, "desc": "Buffer" }
   ],
-  "timeline": [
-    {
-      "phase": "Strategic Foundation",
-      "timing": "12–8 Weeks Out",
-      "title": "Venue Lock & Spatial CAD Design",
-      "desc": "Contract execution, venue deposit escrow, acoustic zoning permit filed."
-    },
-    {
-      "phase": "Vendor Synthesis",
-      "timing": "6–4 Weeks Out",
-      "title": "Culinary Tastings & Soundcheck Protocol",
-      "desc": "Menu pairing finalized with sommelier; DJ playlist and decibel curve mapped."
-    },
-    {
-      "phase": "Guest Experience",
-      "timing": "2 Weeks Out",
-      "title": "RSVP Lock & Seating Harmony Matrix",
-      "desc": "Dietary requirements reconciled; bespoke name calligraphy and table layout locked."
-    },
-    {
-      "phase": "Day-of Run of Show",
-      "timing": "10:00 - 15:30",
-      "title": "Vendor Load-in & Lighting DMX Calibration",
-      "desc": "Scenic rigging, lighting Kelvin temperature verified, floral delivery accepted."
-    },
-    {
-      "phase": "Day-of Run of Show",
-      "timing": "17:30 - 19:00",
-      "title": "Guest Arrival, Golden Hour Welcome & Music",
-      "desc": "Valet receiving, champagne flutes poured, live acoustic opening set."
-    },
-    {
-      "phase": "Day-of Run of Show",
-      "timing": "19:00 - 21:30",
-      "title": "Seated Culinary Journey & Curated Speeches",
-      "desc": "Synchronized dinner courses, micro-speeches, dimmed candlelight transition."
-    },
-    {
-      "phase": "Day-of Run of Show",
-      "timing": "21:30 - 00:30",
-      "title": "High-Energy DJ Set & Midnight Toast",
-      "desc": "Dynamic lighting shifts, curated dance tracks, espresso martini lounge open."
-    }
-  ],
-  "vendorChecklist": [
-    {
-      "id": "v1",
-      "category": "Venue",
-      "title": "Premier Estate / Pavilion Venue",
-      "status": "Booked",
-      "allocated": <number matching Venue category>,
-      "sla": "12-hour exclusive load-in & decibel compliance",
-      "recommended": "Verify power backup and sound curfew before contract signing."
-    },
-    {
-      "id": "v2",
-      "category": "Catering",
-      "title": "Executive Catering & Private Sommelier",
-      "status": "In Negotiation",
-      "allocated": <number matching Catering category>,
-      "sla": "1:8 server ratio and 100% dietary precision",
-      "recommended": "Secure local seasonal pairings and sommelier decanting window."
-    },
-    {
-      "id": "v3",
-      "category": "Floral & Decor",
-      "title": "Bespoke Botanical Studio",
-      "status": "Shortlisted",
-      "allocated": <number matching Floral category>,
-      "sla": "Day-of morning delivery with on-site designer refresh",
-      "recommended": "Request sample tablescape trial 3 weeks prior."
-    },
-    {
-      "id": "v4",
-      "category": "Music & DJ",
-      "title": "Headline Event DJ & Sound Engineer",
-      "status": "Booked",
-      "allocated": <number matching Music category>,
-      "sla": "Pre-screened Do-Not-Play list, redundant wireless mics",
-      "recommended": "Conduct acoustic soundcheck at 14:00 to eliminate pavilion echo."
-    },
-    {
-      "id": "v5",
-      "category": "Lighting & Ambience",
-      "title": "Architectural Lighting Specialist",
-      "status": "In Negotiation",
-      "allocated": <number matching Lighting category>,
-      "sla": "Color-temperature matching 2200K to 2700K",
-      "recommended": "Use wireless pin spots for floral centerpieces."
-    },
-    {
-      "id": "v6",
-      "category": "Photography & Cinema",
-      "title": "Editorial Photography & Motion Studio",
-      "status": "Shortlisted",
-      "allocated": <number matching Photography category>,
-      "sla": "8-hour continuous coverage, drone authorization",
-      "recommended": "Provide shot list focusing on candid emotion and evening lighting."
-    }
-  ],
+  "timeline": [],
+  "vendorChecklist": [],
   "personalizedIdeas": [
-    {
-      "type": "Theme & Creative Concept",
-      "title": "Specific creative title reflecting ${safeVibe}",
-      "description": "Compelling narrative detailing the aesthetic theme, signature colors, guest dress code, and atmospheric touches."
-    },
-    {
-      "type": "Music & DJ Curation",
-      "title": "Curated Sonic Progression & DJ Style",
-      "description": "Specific genres, transition from cocktail hour jazz/downtempo to peak-hour deep house or retro-funk, key tracks, and sound design."
-    },
-    {
-      "type": "Lighting & Sensory Ambience",
-      "title": "Cinematic Illumination & Temperature Palette",
-      "description": "Exact Kelvin color temperatures (e.g. 2400K candlelight wash), kinetic moving fixtures, uplighting accents, and scent/sound integration."
-    },
-    {
-      "type": "Culinary & Beverage Pacing",
-      "title": "Signature Tasting & Liquid Chemistry",
-      "description": "Unique welcome cocktail, seasonal pairing highlights, late-night surprise bite, and presentation theatricality."
-    },
-    {
-      "type": "Spatial Experience & Guest Journey",
-      "title": "Choreographed Arrival & Intimate Discovery",
-      "description": "Guest ingress sequence, secret lounge reveal, photo-worthy interactive moment, and graceful midnight send-off."
-    }
+    { "type": "Theme & Creative Concept", "title": "Concept", "description": "Desc" },
+    { "type": "Music & DJ Curation", "title": "Music", "description": "Desc" },
+    { "type": "Lighting & Sensory Ambience", "title": "Lighting", "description": "Desc" },
+    { "type": "Culinary & Beverage Pacing", "title": "Culinary", "description": "Desc" },
+    { "type": "Spatial Experience & Guest Journey", "title": "Spatial", "description": "Desc" }
   ]
-}
-
-CRITICAL RULES:
-1. The sum of all 'amount' values in 'budgetBreakdown' MUST equal exactly ${numBudget}.
-2. Ensure all numbers are integers (no strings for amounts).
-3. Ensure 'personalizedIdeas' has exactly 5 rich, tailored items covering Theme, Music/DJ, Lighting, Culinary, and Spatial.`;
+}`;
 
       const ai = getGenAIClient();
       const response = await ai.models.generateContent({
@@ -447,7 +297,6 @@ CRITICAL RULES:
         throw new Error('Invalid plan blueprint generated.');
       }
 
-      // Reconcile budget math so it equals exactly numBudget
       if (Array.isArray(parsed.budgetBreakdown) && parsed.budgetBreakdown.length > 0) {
         let currentSum = 0;
         parsed.budgetBreakdown.forEach((item: { amount: number }) => {
@@ -466,14 +315,14 @@ CRITICAL RULES:
 
       res.json(parsed);
     } catch (error: unknown) {
-      console.error('Error in /api/gemini/generate-plan:', error instanceof Error ? error.message : 'Unknown');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown';
+      console.error('Error in /api/gemini/generate-plan:', errorMessage);
       res.status(500).json({
         error: 'Unable to synthesize event plan at this moment. Please check parameters and retry.',
       });
     }
   });
 
-  // Audio Transcription Endpoint using gemini-3.5-transcribe
   app.post('/api/gemini/transcribe', async (req: Request, res: Response): Promise<void> => {
     try {
       const { audioBase64, mimeType = 'audio/webm' } = req.body || {};
@@ -483,16 +332,18 @@ CRITICAL RULES:
         return;
       }
 
-      // Validate mime type
       const safeMime = ALLOWED_AUDIO_MIMES.has(mimeType) ? mimeType : 'audio/webm';
+      const cleanBase64 = (
+        audioBase64.includes(',') ? audioBase64.split(',')[1] : audioBase64
+      ).replace(/\s/g, '');
 
-      const cleanBase64 = audioBase64.includes(',')
-        ? audioBase64.split(',')[1]
-        : audioBase64;
-
-      // Limit audio payload length (max ~8MB base64 which corresponds to ~6MB raw)
-      if (cleanBase64.length > 8 * 1024 * 1024) {
+      if (cleanBase64.length === 0 || cleanBase64.length > 8 * 1024 * 1024) {
         res.status(413).json({ error: 'Audio recording exceeds allowed 6MB size limit.' });
+        return;
+      }
+
+      if (!BASE64_REGEX.test(cleanBase64)) {
+        res.status(400).json({ error: 'Malformed base64 audio payload.' });
         return;
       }
 
@@ -523,14 +374,14 @@ CRITICAL RULES:
         model: 'gemini-3.5-transcribe',
       });
     } catch (error: unknown) {
-      console.error('Error in /api/gemini/transcribe:', error instanceof Error ? error.message : 'Unknown');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown';
+      console.error('Error in /api/gemini/transcribe:', errorMessage);
       res.status(500).json({
         error: 'Spoken directive transcription could not be completed. Please speak clearly or use text input.',
       });
     }
   });
 
-  // Serve static assets or mount Vite dev middleware
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -540,15 +391,23 @@ CRITICAL RULES:
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(__dirname, 'dist');
-    app.use(express.static(distPath));
-    app.get('*all', (_req, res) => {
+    app.use(express.static(distPath, { maxAge: '1d' }));
+    app.get('*', (_req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Aura Server running on http://localhost:${PORT}`);
   });
+
+  const shutdown = () => {
+    server.close(() => {
+      process.exit(0);
+    });
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 startServer();
