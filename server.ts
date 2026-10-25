@@ -392,9 +392,9 @@ The JSON object MUST strictly adhere to this exact structure:
   } else {
     const distPath = path.join(__dirname, 'dist');
     app.use(express.static(distPath, { maxAge: '1d' }));
-    app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.use((_req: Request, res: Response) => {
+  res.sendFile(path.join(distPath, 'index.html'));
+  });
   }
 
   const server = app.listen(PORT, '0.0.0.0', () => {
